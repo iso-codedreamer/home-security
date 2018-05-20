@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 import time
+import common
 
 hostName = ""
 hostPort = 9090
+FIFO = common.FIFO
 
 class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -15,6 +18,11 @@ class MyServer(BaseHTTPRequestHandler):
         self.wfile.write(bytes("Received\r\n", "utf-8"))
         query_components = parse_qs(urlparse(self.path).query)
         print(query_components)
+        print("Writing to IPC pipe")
+        pipe = open(FIFO, 'w')
+        count = pipe.write('IPC CALL')
+        print("Written {} chars".format(count))
+        pipe.close()
 
 
 if __name__ == "__main__":
