@@ -134,13 +134,13 @@ class SMS(object):
     def reset(self):
         """
         Reset (turn on) the SIM800 module by taking the power line for >1s
-        and then wait 5s for the module to boot.
+        and then wait 15s for the module to boot.
         """
-        self._logger.debug("Reset (duration ~6.2s)")
+        self._logger.debug("Reset (duration ~16.2s)")
         IO.output(GSM_ON, IO.HIGH)
         sleep(1.2)
         IO.output(GSM_ON, IO.LOW)
-        sleep(5.)
+        sleep(15.)
 
     def sendATCmdWaitResp(self, cmd, response, timeout=.5, interByteTimeout=.1, attempts=1, addCR=False):
         """
