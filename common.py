@@ -22,6 +22,10 @@ homeSecurityLogger.setLevel(logging.DEBUG)
 #named pipe for IPC
 FIFO = 'homesecpipe'
 
+#ports
+WEBSERVER_PORT=9090
 
-#motion detected IPC command
+#some IPC commands
 MOTION_DETECTED_COMMAND = 'MOTIONDETECT'
+WEBSERVER_READY_COMMAND = 'HTTPREADY'
+WEBSERVER_FAIL_COMMAND = 'HTTPFAIL'
