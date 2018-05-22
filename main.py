@@ -1,5 +1,5 @@
+#!/usr/bin/python3
 
-#This is meant to be the middleman between the sim800 and the motion detection
 import os, subprocess
 import errno
 import sim800 
@@ -10,9 +10,30 @@ import common
 FIFO = common.FIFO
 logger = common.homeSecurityLogger
 
+def handleMotionDetection():
+    logger.debug("Handling motion detection event")
+    notifyComplete = False
+    for number in common.NOTIFY_GSM_NUMBERS:
+        attempt = 1
+        while attempt <= int(common.REDIAL_COUNT)+1:
+            logger.debug("Attempt {} for GSM number {}".format(attempt, number))
+            #callConnected = False
+            callConnected = gsm.placeCall(number)
+            if callConnected: 
+                notifyComplete = True
+                break
+            attempt += 1
+        if notifyComplete: 
+            break
+        gsm.sendSMS(number, "Motion detected")
+
+    logger.info("Event notification complete")
+
+
 try:
     os.mkfifo(FIFO)
 except OSError as oe: 
+    logger.critical("Failed to set {} as FIFO pipe".format(FIFO))
     if oe.errno != errno.EEXIST:
         raise
 
@@ -37,8 +58,8 @@ try:
                 data = fifo.read()
                 if len(data) == 0: break
                 logger.debug('IPC data received: "{0}"'.format(data))
-                if(data == 'TEST'):
-                    gsm.placeCall(common.NOTIFY_GSM_NUMBER)
+                if(data == common.MOTION_DETECTED_COMMAND):
+                    handleMotionDetection()
 except KeyboardInterrupt:
     print("")
     pass

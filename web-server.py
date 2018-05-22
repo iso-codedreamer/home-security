@@ -18,18 +18,22 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(bytes("Received\r\n", "utf-8"))
         query_components = parse_qs(urlparse(self.path).query)
-        #print(query_components)    
-        #check whether the named pipe exists and write to it
-        try:
-            isFIFO = stat.S_ISFIFO(os.stat(FIFO).st_mode)
-            if not isFIFO: raise FileNotFoundError
-            logger.debug("Writing to IPC pipe")
-            pipe = open(FIFO, 'w')
-            count = pipe.write('TEST')
-            logger.debug("Written {} chars to pipe".format(count))
-            pipe.close()
-        except FileNotFoundError:
-            logger.critical("IPC write failed. File does not exist or is not a pipe")
+        if('motion' in query_components):
+            logger.info("Motion parameter set in request")
+            #check whether the named pipe exists and write to it
+            try:
+                isFIFO = stat.S_ISFIFO(os.stat(FIFO).st_mode)
+                if not isFIFO: raise FileNotFoundError
+                logger.debug("Writing motion detected command to IPC pipe")
+                pipe = open(FIFO, 'w')
+                count = pipe.write(common.MOTION_DETECTED_COMMAND)
+                logger.debug("Written {} chars to pipe".format(count))
+                pipe.close()
+            except FileNotFoundError:
+                logger.critical("IPC write failed. File does not exist or is not a pipe")
+
+    def log_message(self, format, *args):
+        logger.info("Request from {}:{} - ".format(self.client_address[0], self.client_address[1]) + format%args)
 
 
 if __name__ == "__main__":

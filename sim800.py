@@ -453,7 +453,7 @@ class SMS(object):
             self._logger.error("Failed to send CMGS command part 1! {}".format(status))
             return False
 
-        cmgs=self.getSingleResponse(msg+"\r\n\x1a", "OK", "+", divider=":", timeout=11., interByteTimeout=1.2)
+        cmgs=self.getSingleResponse(msg+"\x1a", "OK", "+", divider=":", timeout=11., interByteTimeout=1.2)
         return cmgs=="CMGS"
 
     def sendUSSD(self, ussd):
