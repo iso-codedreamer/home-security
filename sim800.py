@@ -2,6 +2,7 @@
 from serial import Serial
 import RPi.GPIO as IO, atexit, logging, sys
 from time import sleep
+import time
 from enum import IntEnum
 from datetime import datetime
 
@@ -465,9 +466,9 @@ class SMS(object):
         return reply
 
 
-    def placeCall(self, number):
+    def placeCall(self, number, timeout=60):
         """
-        Place a call
+        Place a call. If call is not connected by the timeout in seconds terminate it
         """
         self.hangUp()
         self._logger.debug("Place call to: {}".format(number))
@@ -479,6 +480,7 @@ class SMS(object):
         inCall=True
         lastCallState=CallState.Disconnected
         callWasConnected = False
+        callStartTime = time.time()
         while inCall:
             sleep(2.)
             #get states of current calls
@@ -518,6 +520,13 @@ class SMS(object):
                 callWasConnected=True
                 inCall=False
                 continue
+
+            #terminate the call if it has timed out
+            if timeout and int(time.time() - callStartTime) > timeout:
+                self._logger.debug("Call timeout of {} seconds has been reached. Will hang up ".format(timeout))
+                inCall = False
+                continue
+            
 
         self.hangUp()
         if not callWasConnected and lastCallState in (CallState.Dialing, CallState.Alerting):
