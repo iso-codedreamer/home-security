@@ -3,6 +3,8 @@
 import os, subprocess
 import atexit
 import types
+import threading
+import time
 
 #project imports
 import common
@@ -10,6 +12,7 @@ import sim800
 
 FIFO = common.FIFO
 logger = common.homeSecurityLogger
+gsmLock = threading.Lock()
 
 @atexit.register
 def exit_handler():
@@ -38,13 +41,22 @@ def exit_handler():
 
 
 def handleMotionDetection():
+    global lastNotifTime
+    notifyGapSeconds = float(common.NOTIFY_GAP)*60
+    nextNotifTime = lastNotifTime + notifyGapSeconds
+    if time.time() < nextNotifTime:
+        logger.info("Still within notify gap ({}m). Last event time: {}"
+                .format(int(common.NOTIFY_GAP), time.asctime(time.localtime(lastNotifTime))))
+        return
+    lastNotifTime = time.time()
+    gsmLock.acquire()
+    logger.debug("{} acquired GSM lock".format(threading.current_thread().name))
     logger.debug("Handling motion detection event")
     notifyComplete = False
     for number in common.NOTIFY_GSM_NUMBERS:
         attempt = 1
         while attempt <= int(common.REDIAL_COUNT)+1:
             logger.debug("Attempt {} for GSM number {}".format(attempt, number))
-            #callConnected = False
             callConnected = gsm.placeCall(number)
             if callConnected: 
                 notifyComplete = True
@@ -52,9 +64,10 @@ def handleMotionDetection():
             attempt += 1
         if notifyComplete: 
             break
-        gsm.sendSMS(number, "Motion detected")
-
+        gsm.sendSMS(number, "Motion detected on {}".format(time.asctime(time.localtime(lastNotifTime))))
+    
     logger.info("Event notification complete")
+    gsmLock.release()
 
 def readFIFO():
     logger.debug("Opening FIFO pipe and waiting for data...")
@@ -66,6 +79,15 @@ def readFIFO():
             logger.debug('IPC data received: "{0}"'.format(data))
             return data
 
+class SIM800Thread (threading.Thread):
+    def __init__(self, func):
+        threading.Thread.__init__(self)
+        self.target = func
+
+    def run(self):
+        logger.debug("Starting {}".format(self.name))
+        self.target()
+        logger.debug("{} has finished".format(self.name))
 
 
 logger.debug("Starting main daemon...")
@@ -85,6 +107,7 @@ except OSError as oe:
     logger.critical("Failed to create {} as FIFO pipe. Error {}. Will terminate".format(FIFO, oe.errno))
     exit(1)
 
+lastNotifTime = 0
 gsm = sim800.SMS(sim800.PORT, sim800.BAUD, logger)
 gsm.setup()
 if not gsm.turnOn(): exit(1)
@@ -106,7 +129,8 @@ try:
     while True:
         data = readFIFO()
         if data == common.MOTION_DETECTED_COMMAND:
-            handleMotionDetection()
+            thread = SIM800Thread(handleMotionDetection)
+            thread.start()
 except KeyboardInterrupt:
     print("")
     pass
