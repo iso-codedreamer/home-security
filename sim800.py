@@ -421,6 +421,7 @@ class SMS(object):
         for n in range(0, len(msgs), 2):
             params,msg=msgs[n:n+2]
             if n==0: params=params[7:]
+            print(params)
             loc,stat,oa,alpha,scts1,scts2,tooa,fo,pid,dcs,sca,tosca,length=params.split(',')
             scts=scts1+','+scts2
             tz=scts[-2:]
@@ -479,6 +480,7 @@ class SMS(object):
 
         inCall=True
         lastCallState=CallState.Disconnected
+        callWasAlerted = False
         callWasConnected = False
         callStartTime = time.time()
         while inCall:
@@ -515,9 +517,15 @@ class SMS(object):
             if currentCallState!=lastCallState:
                 self._logger.debug("Reported new call state: {}".format(CallState(currentCallState).name))
                 lastCallState = currentCallState
-            if currentCallState==CallState.Active:
+                if currentCallState==CallState.Alerting: callWasAlerted = True
+            if currentCallState==CallState.Active and callWasAlerted:
                 self._logger.debug("Call connected. Will hang up")
                 callWasConnected=True
+                inCall=False
+                continue
+            if currentCallState==CallState.Active and not callWasAlerted:
+                self._logger.debug("Call connected without Alerting. Possible zero balance situation")
+                callWasConnected=False
                 inCall=False
                 continue
 
@@ -559,16 +567,16 @@ if __name__=="__main__":
     if not s.turnOn(): exit(1)
     if not s.setEchoOff(): exit(1)
     print("Good to go!")
-    print(s.getIMEI())
-    print(s.getVersion())
-    print(s.getSIMCCID())
+    #print(s.getIMEI())
+    #print(s.getVersion())
+    #print(s.getSIMCCID())
     #print(s.getLastError())
-    ns=s.getNetworkStatus()
-    print(ns)
-    if ns not in (NetworkStatus.RegisteredHome, NetworkStatus.RegisteredRoaming):
-        exit(1)
+    #ns=s.getNetworkStatus()
+    #print(ns)
+    #if ns not in (NetworkStatus.RegisteredHome, NetworkStatus.RegisteredRoaming):
+     ##   exit(1)
     #if ns is registering it makes sense to retry until we have registered state or fail
-    print(s.getRSSI())
+    #print(s.getRSSI())
     #s.enableNetworkTimeSync(True)
     #print(s.getTime())
     #print(s.setTime(datetime.now()))
@@ -577,8 +585,8 @@ if __name__=="__main__":
     #print(s.sendUSSD(BALANCE_USSD))
     #print(s.getLastError())
     #print(s.getNumSMS())
-    #print(s.readSMS(1))
+    print(s.readSMS(2))
     #print(s.deleteSMS(1))
-    #print(s.readAllSMS())
-    print(s.placeCall("+255717398906"))
+    print(s.readAllSMS())
+    #print(s.placeCall("+255717398906"))
 
