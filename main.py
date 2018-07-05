@@ -5,6 +5,7 @@ import atexit
 import types
 import threading
 import time
+import signal
 
 #project imports
 import common
@@ -13,6 +14,10 @@ import sim800
 FIFO = common.FIFO
 logger = common.homeSecurityLogger
 gsmLock = threading.Lock()
+
+def handle_sigterm(a, b):
+    logger.info("Received SIGTERM. Performing cleanup...")
+    exit(0)
 
 @atexit.register
 def exit_handler():
@@ -90,6 +95,7 @@ class SIM800Thread (threading.Thread):
         logger.debug("{} has finished".format(self.name))
 
 
+signal.signal(signal.SIGTERM, handle_sigterm)
 logger.debug("Starting main daemon...")
 
 try:
