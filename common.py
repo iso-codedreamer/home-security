@@ -15,6 +15,11 @@ REDIAL_COUNT = config['CALL']['Redials']
 #notification settings
 NOTIFY_GAP = config['NOTIFICATIONS']['NotifyGap']
 
+#meye nvr server info
+NVR_SERVER_MAC_ADDRESS = config['SERVER']['ServerMAC']
+NVR_SERVER_IP_ADDRESS = config['SERVER']['ServerIP']
+NVR_SERVER_PORT = config['SERVER']['ServerPort']
+
 homeSecurityLogger = logging.getLogger('MAINLOG')
 handler=logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s %(filename)-12.12s %(levelname)-8s: %(message)s"))

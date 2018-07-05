@@ -130,6 +130,10 @@ elif status == common.WEBSERVER_FAIL_COMMAND:
     logger.critical("Web server subprocess reported failure. Script has to exit")
     exit(1)
 
+logger.debug("Starting nvr server watchdog in subprocess")
+cmd = ['./nvr-watchdog.py']
+watchdogprocess = subprocess.Popen(cmd)
+
 logger.debug("Starting mainloop for reading IPC pipe")
 try:
     while True:
