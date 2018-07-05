@@ -12,6 +12,9 @@ NOTIFY_GSM_NUMBERS = tuple(nums)
 #retry attempts
 REDIAL_COUNT = config['CALL']['Redials']
 
+#notification settings
+NOTIFY_GAP = config['NOTIFICATIONS']['NotifyGap']
+
 homeSecurityLogger = logging.getLogger('MAINLOG')
 handler=logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter("%(asctime)s %(filename)-12.12s %(levelname)-8s: %(message)s"))
@@ -29,3 +32,4 @@ WEBSERVER_PORT=9090
 MOTION_DETECTED_COMMAND = 'MOTIONDETECT'
 WEBSERVER_READY_COMMAND = 'HTTPREADY'
 WEBSERVER_FAIL_COMMAND = 'HTTPFAIL'
+
