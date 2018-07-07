@@ -544,6 +544,38 @@ class SMS(object):
 
         return callWasConnected
 
+    def handleIncomingCall(self):
+        #get states of current calls
+        response,currentStates=self.sendATCmdWaitReturnResp("AT+CLCC","OK")
+        if response!=ATResp.OK:
+            self._logger.error("Invalid response to current call status command")
+        if not len(currentStates):
+            self._logger.debug("No current calls found")
+
+        #ensure we get this call's state. It has to be incoming
+        foundCallState=False
+        callerNumber = None
+        for line in currentStates:
+            if not line.startswith("+CLCC: "): continue
+            callData=line.split(",")
+            try:
+                currentCallState = int(callData[2])
+                callerNumber = callData[5]
+            except IndexError:
+                continue
+            else:
+                if currentCallState==CallState.Incoming:
+                    foundCallState=True
+                    break
+
+        if foundCallState and callerNumber is not None:
+            self._logger.info("Incoming call from {}".format(callerNumber))
+            self.hangUp()
+        else:
+            self._logger.warning("Could not identify incoming call")
+            self.hangUp()
+
+
     def hangUp(self):
         """
         Sends command to hang up or terminate or reject any ongoing call
@@ -579,13 +611,14 @@ class SMS(object):
                 data_str = data_str.decode("utf-8").strip()
                 if not len(data_str) or data_str.isspace(): #MT wrote empty line
                     continue 
-                self._logger.debug("MT said: {}".format(data_str))
+                self._logger.info("MT said: {}".format(data_str))
                 data = data_str
                 keepWaiting = False
             if self._interruptMTDataWait:
                 keepWaiting = False
             if not keepWaiting:
                 self._logger.debug("Leaving MT data waiting mode")
+                pass
             else:
                 sleep(.2) #give the CPU a break it very much deserves. 0.2 seconds is pretty realtime
         

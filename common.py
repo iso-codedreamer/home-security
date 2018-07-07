@@ -1,5 +1,6 @@
 import logging, sys
 import configparser
+import threading
 
 config = configparser.ConfigParser(allow_no_value=True)
 config.read('main.conf')
@@ -37,4 +38,7 @@ WEBSERVER_PORT=9090
 MOTION_DETECTED_COMMAND = 'MOTIONDETECT'
 WEBSERVER_READY_COMMAND = 'HTTPREADY'
 WEBSERVER_FAIL_COMMAND = 'HTTPFAIL'
+
+#kill flag. once set, all processes and threads should respect it and gracefully terminate
+KILL_FLAG = False
 

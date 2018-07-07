@@ -65,7 +65,7 @@ def handleMotionDetection():
         notifyComplete = False
         for number in common.NOTIFY_GSM_NUMBERS:
             attempt = 1
-            while attempt <= int(common.REDIAL_COUNT)+1:
+            while attempt <= int(common.REDIAL_COUNT)+1 and not common.KILL_FLAG:
                 logger.debug("Attempt {} for GSM number {}".format(attempt, number))
                 callConnected = gsm.placeCall(number)
                 if callConnected: 
@@ -77,6 +77,11 @@ def handleMotionDetection():
             gsm.sendSMS(number, "Motion detected on {}".format(time.asctime(time.localtime(lastNotifTime))))
         
     logger.info("Event notification complete")
+
+def handleMTMessage(message):
+    message = message.upper()
+    if message == "RING":
+        gsm.handleIncomingCall()
 
 def readFIFO():
     with open(FIFO) as fifo:
@@ -104,11 +109,13 @@ class MTDataWaitingThread (threading.Thread):
         logger.debug("Started MT data waiting thread {}".format(self.name))
         with gsmLock:
             logger.debug("{} acquired GSM lock".format(self.name))
-            gsm.awaitDataFromMT() 
-        
+            data = gsm.awaitDataFromMT() 
+            if data is not None: handleMTMessage(data)
         logger.debug("{} has finished".format(self.name))
-        nextWaitingThread = MTDataWaitingThread()
-        nextWaitingThread.start()
+        if not common.KILL_FLAG:
+            time.sleep(.5) #a little spacing before we attempt reentering the mode
+            nextWaitingThread = MTDataWaitingThread()
+            nextWaitingThread.start()
 
 
 signal.signal(signal.SIGTERM, handle_sigterm)
@@ -162,5 +169,6 @@ try:
             thread.start()
 except KeyboardInterrupt:
     print("")
-    pass
+    common.KILL_FLAG = True
+    gsm.interruptMTDataWait()
 
