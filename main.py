@@ -17,6 +17,8 @@ gsmLock = threading.Lock()
 
 def handle_sigterm(a, b):
     logger.info("Received SIGTERM. Performing cleanup...")
+    common.KILL_FLAG = True
+    gsm.interruptMTDataWait()
     exit(0)
 
 @atexit.register
