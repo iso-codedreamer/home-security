@@ -23,19 +23,23 @@ def handle_sigterm(a, b):
 def exit_handler():
     logger.info("Received exit code")
     #kill subrocesses that are still running
+    killsubprocesses = ({"process":httpprocess, "name":"web server"},{"process":watchdogprocess, "name":"NVR watchdog"})
     killtimeout = 3
-    if isinstance(httpprocess, subprocess.Popen):
-        if httpprocess.poll() is None:
-            logger.debug("Terminating web server subprocess")
-            httpprocess.terminate()
-            try:
-               httpprocess.wait(killtimeout)
-            except subprocess.TimeoutExpired:
-                logger.warning("Webserver subprocess did not terminate within {} seconds".format(killtimeout))
+    for item in killsubprocesses:
+        processname = item["name"]
+        killprocess = item["process"]
+        if isinstance(killprocess, subprocess.Popen):
+            if killprocess.poll() is None:
+                logger.debug("Terminating {} subprocess".format(processname))
+                killprocess.terminate()
+                try:
+                   killprocess.wait(killtimeout)
+                except subprocess.TimeoutExpired:
+                    logger.warning("{} subprocess did not terminate within {} seconds".format(processname, killtimeout))
+                else:
+                    logger.info("{} terminated successfully".format(processname))
             else:
-                logger.info("Webserver terminated successfully")
-        else:
-            logger.info("Webserver process is already dead")
+                logger.info("{} process is already dead".format(processname))
 
     #attempt deleting of pipe
     try:
@@ -54,30 +58,28 @@ def handleMotionDetection():
                 .format(int(common.NOTIFY_GAP), time.asctime(time.localtime(lastNotifTime))))
         return
     lastNotifTime = time.time()
-    gsmLock.acquire()
-    logger.debug("{} acquired GSM lock".format(threading.current_thread().name))
-    logger.debug("Handling motion detection event")
-    notifyComplete = False
-    for number in common.NOTIFY_GSM_NUMBERS:
-        attempt = 1
-        while attempt <= int(common.REDIAL_COUNT)+1:
-            logger.debug("Attempt {} for GSM number {}".format(attempt, number))
-            callConnected = gsm.placeCall(number)
-            if callConnected: 
-                notifyComplete = True
+    gsm.interruptMTDataWait()
+    with gsmLock:
+        logger.debug("{} acquired GSM lock".format(threading.current_thread().name))
+        logger.debug("Handling motion detection event")
+        notifyComplete = False
+        for number in common.NOTIFY_GSM_NUMBERS:
+            attempt = 1
+            while attempt <= int(common.REDIAL_COUNT)+1:
+                logger.debug("Attempt {} for GSM number {}".format(attempt, number))
+                callConnected = gsm.placeCall(number)
+                if callConnected: 
+                    notifyComplete = True
+                    break
+                attempt += 1
+            if notifyComplete: 
                 break
-            attempt += 1
-        if notifyComplete: 
-            break
-        gsm.sendSMS(number, "Motion detected on {}".format(time.asctime(time.localtime(lastNotifTime))))
-    
+            gsm.sendSMS(number, "Motion detected on {}".format(time.asctime(time.localtime(lastNotifTime))))
+        
     logger.info("Event notification complete")
-    gsmLock.release()
 
 def readFIFO():
-    logger.debug("Opening FIFO pipe and waiting for data...")
     with open(FIFO) as fifo:
-        logger.debug("FIFO opened. Receiving data...")
         while True:
             data = fifo.read()
             if len(data) == 0: break
@@ -93,6 +95,20 @@ class SIM800Thread (threading.Thread):
         logger.debug("Starting {}".format(self.name))
         self.target()
         logger.debug("{} has finished".format(self.name))
+
+class MTDataWaitingThread (threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        logger.debug("Started MT data waiting thread {}".format(self.name))
+        with gsmLock:
+            logger.debug("{} acquired GSM lock".format(self.name))
+            gsm.awaitDataFromMT() 
+        
+        logger.debug("{} has finished".format(self.name))
+        nextWaitingThread = MTDataWaitingThread()
+        nextWaitingThread.start()
 
 
 signal.signal(signal.SIGTERM, handle_sigterm)
@@ -133,6 +149,9 @@ elif status == common.WEBSERVER_FAIL_COMMAND:
 logger.debug("Starting nvr server watchdog in subprocess")
 cmd = ['./nvr-watchdog.py']
 watchdogprocess = subprocess.Popen(cmd)
+
+mtDataThread = MTDataWaitingThread()
+mtDataThread.start()
 
 logger.debug("Starting mainloop for reading IPC pipe")
 try:

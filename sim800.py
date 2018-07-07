@@ -114,6 +114,8 @@ class SMS(object):
         self._ready=False
         self._serial=None
 
+        self._interruptMTDataWait = False #flag variable for controlling exiting of MT data wait mode
+
         if logger: self._logger=logger
         else:
             self._logger=logging.getLogger("SMS")
@@ -560,6 +562,43 @@ class SMS(object):
         report = report[0].split(":",1)
         return report[-1]
 
+    def awaitDataFromMT(self, timeout=.5, interByteTimeout=.1):
+        """
+        Enters loop to wait for data from SIM800 Mobile Terminal (MT)
+        Once data is obtained it returns the data and exits the loop
+        """
+        self._logger.debug("Entering MT data waiting mode")
+        self._serial.timeout=timeout
+        self._serial.inter_byte_timeout=interByteTimeout
+        keepWaiting = True
+        data = None
+        while (keepWaiting):
+            if (self._serial.inWaiting() > 0):
+                #data_str = self._serial.read(self._serial.inWaiting()).decode('ascii')
+                data_str = self._serial.readline()
+                data_str = data_str.decode("utf-8").strip()
+                if not len(data_str) or data_str.isspace(): #MT wrote empty line
+                    continue 
+                self._logger.debug("MT said: {}".format(data_str))
+                data = data_str
+                keepWaiting = False
+            if self._interruptMTDataWait:
+                keepWaiting = False
+            if not keepWaiting:
+                self._logger.debug("Leaving MT data waiting mode")
+            else:
+                sleep(.2) #give the CPU a break it very much deserves. 0.2 seconds is pretty realtime
+        
+        self._interruptMTDataWait = False
+        return data
+
+    def interruptMTDataWait(self):
+        """
+        Exits loop to wait for data from MT started by awaitDataFromMT()
+        """
+        self._logger.debug("Interrupting MT Data Wait mode")
+        self._interruptMTDataWait = True
+
 
 if __name__=="__main__":
     s=SMS(PORT,BAUD,loglevel=logging.DEBUG)
@@ -585,8 +624,12 @@ if __name__=="__main__":
     #print(s.sendUSSD(BALANCE_USSD))
     #print(s.getLastError())
     #print(s.getNumSMS())
-    print(s.readSMS(2))
+    #print(s.readSMS(2))
     #print(s.deleteSMS(1))
-    print(s.readAllSMS())
+    #print(s.readAllSMS())
     #print(s.placeCall("+255717398906"))
+    #s.awaitDataFromMT()
+
+
+
 
