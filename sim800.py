@@ -442,6 +442,22 @@ class SMS(object):
             return False        
         status=self.sendATCmdWaitResp("AT+CMGD={:03d}".format(number), "OK")
         return status==ATResp.OK
+    
+    def deleteAllSMS(self, timeOut=None):
+        """
+        Delete all SMS in preferred storage
+        You can specify a custom timeout if you want to wait for the MT to finish the process and return OK
+        """
+        self._logger.debug("Delete all SMS")
+        if not self.setSMSMessageFormat(SMSMessageFormat.Text):
+            self._logger.error("Failed to set SMS Message Format!")
+            return False       
+        if timeOut == None:
+            status=self.sendATCmdWaitResp("AT+CMGDA=\"DEL ALL\"", "OK")
+        else:
+            status=self.sendATCmdWaitResp("AT+CMGDA=\"DEL ALL\"", "OK", timeout=timeOut)
+        return status==ATResp.OK
+
 
     def sendSMS(self, phoneNumber, msg):
         """
@@ -662,7 +678,8 @@ if __name__=="__main__":
     #print(s.readAllSMS())
     #print(s.placeCall("+255717398906"))
     #s.awaitDataFromMT()
-
+    #s.sendUSSD("*102#")
+    s.readAllSMS()
 
 
 

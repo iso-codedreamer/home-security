@@ -144,6 +144,7 @@ gsm.setup()
 if not gsm.turnOn(): exit(1)
 if not gsm.setEchoOff: exit(1)
 logger.info("GSM module set up successfully")
+gsm.deleteAllSMS()
 
 logger.debug("Starting web server in subprocess and waiting for ready message")
 cmd = ['./web-server.py']
