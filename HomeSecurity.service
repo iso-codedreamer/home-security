@@ -1,0 +1,16 @@
+[Unit]
+Description=HomeSecurity monitoring & communication daemon
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/home_security/main.py
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=HomeSecurity
+User=pi
+WorkingDirectory=/home/pi/home_security
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
