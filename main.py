@@ -83,7 +83,7 @@ def handleMotionDetection():
 def handleMTMessage(message):
     message = message.upper()
     if message == "RING":
-        gsm.handleIncomingCall()
+        gsm.handleIncomingCall(common.NOTIFY_GSM_NUMBERS)
 
 def readFIFO():
     with open(FIFO) as fifo:

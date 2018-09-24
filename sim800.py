@@ -417,7 +417,9 @@ class SMS(object):
             return None
 
         status,msgs=self.sendATCmdWaitReturnResp('AT+CMGL="{}"'.format(SMSStatus.toStat(status)), "OK")
-        if status!=ATResp.OK or not msgs[0].startswith("+CMGL: ") or len(msgs)%2!=0: return None
+        if status!=ATResp.OK: return None
+        if len(msgs)==0: return None
+        if not msgs[0].startswith("+CMGL: ") or len(msgs)%2!=0: return None
 
         formatted=[]
         for n in range(0, len(msgs), 2):
@@ -496,13 +498,14 @@ class SMS(object):
             self._logger.error("Failed to place call to {}.".format(number))
             return False
 
+        self.setSpeakerVolume(0)
         inCall=True
         lastCallState=CallState.Disconnected
         callWasAlerted = False
         callWasConnected = False
         callStartTime = time.time()
         while inCall:
-            sleep(2.)
+            sleep(1.2)
             #get states of current calls
             response,currentStates=self.sendATCmdWaitReturnResp("AT+CLCC","OK")
             if response!=ATResp.OK:
@@ -537,9 +540,11 @@ class SMS(object):
                 lastCallState = currentCallState
                 if currentCallState==CallState.Alerting: callWasAlerted = True
             if currentCallState==CallState.Active and callWasAlerted:
-                self._logger.debug("Call connected. Will hang up")
+                if not callWasConnected:
+                    self._logger.debug("Call connected.")
+                    self.setSpeakerVolume(100)
                 callWasConnected=True
-                inCall=False
+                #inCall=False
                 continue
             if currentCallState==CallState.Active and not callWasAlerted:
                 self._logger.debug("Call connected without Alerting. Possible zero balance situation")
@@ -560,7 +565,7 @@ class SMS(object):
 
         return callWasConnected
 
-    def handleIncomingCall(self):
+    def handleIncomingCall(self, connectNumbers):
         #get states of current calls
         response,currentStates=self.sendATCmdWaitReturnResp("AT+CLCC","OK")
         if response!=ATResp.OK:
@@ -576,7 +581,7 @@ class SMS(object):
             callData=line.split(",")
             try:
                 currentCallState = int(callData[2])
-                callerNumber = callData[5]
+                callerNumber = callData[5].replace('"','')
             except IndexError:
                 continue
             else:
@@ -586,7 +591,11 @@ class SMS(object):
 
         if foundCallState and callerNumber is not None:
             self._logger.info("Incoming call from {}".format(callerNumber))
-            self.hangUp()
+            if callerNumber in connectNumbers:
+                self.sendATCmdWaitResp("ATA", "OK")
+                self.setSpeakerVolume(100)
+            else:
+                self.hangUp()
         else:
             self._logger.warning("Could not identify incoming call")
             self.hangUp()
@@ -598,6 +607,19 @@ class SMS(object):
         """
         self._logger.debug("Terminating all calls")
         return self.sendATCmdWaitResp("ATH","OK")
+
+    def setSpeakerVolume(self, percent):
+        """
+        Sets the monitor speaker loudness. Provide value in percent
+        """
+        loudness = 0
+        percent = int(percent)
+        if(percent > 0):
+            loudness = int((percent / 100) * 9)
+        if(percent > 100):
+            loudness = 9
+        self.sendATCmdWaitResp("AT+CLVL={}".format(percent),"OK")
+        return self.sendATCmdWaitResp("ATL{}".format(loudness),"OK")
 
     def getCallErrorReport(self):
         """
@@ -676,10 +698,8 @@ if __name__=="__main__":
     #print(s.readSMS(2))
     #print(s.deleteSMS(1))
     #print(s.readAllSMS())
-    #print(s.placeCall("+255717398906"))
     #s.awaitDataFromMT()
     #s.sendUSSD("*102#")
-    s.readAllSMS()
-
-
+    #s.readAllSMS()
+    #print(s.placeCall("+255746777147"))
 
