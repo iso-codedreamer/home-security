@@ -36,7 +36,7 @@ if __name__ == "__main__":
     try:
         while True:
             logger.info("Pinging NVR server")
-            nextSleepInterval = 600.
+            nextSleepInterval = 120.
             if not nvr_online():
                 logger.info("Ping failed, sending Wake-on-LAN")
                 subprocess.call(["wakeonlan", serverMAC])
